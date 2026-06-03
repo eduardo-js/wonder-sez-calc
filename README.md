@@ -39,6 +39,25 @@ Then open http://localhost:5173. Configuration is inline in `docker-compose.yml`
 file). Editing `frontend/src/**` hot-reloads live; for backend changes run `make docker-rebuild`.
 See `specs/006-docker-compose-setup/quickstart.md` for details.
 
+### Continuous Integration
+
+GitHub Actions (`.github/workflows/ci.yml`) gates every PR and push to `main`:
+
+| Job        | Runs                                                            |
+|------------|-----------------------------------------------------------------|
+| `frontend` | lint, typecheck, unit tests, build                              |
+| `backend`  | `go vet`, tests + 95% coverage gate, build                      |
+| `e2e`      | boots the Docker stack, runs Playwright against the live UI (gated on the two above) |
+
+The combined status is the required merge check. E2E uses the same commands as local — run them with:
+
+```bash
+make e2e              # start stack, run Playwright, tear down
+make test-e2e         # run e2e against an already-running stack
+```
+
+E2E lives in `e2e/` (Playwright, Chromium). See `specs/007-ci-cd-e2e-pipeline/quickstart.md`.
+
 ## How it works
 
 Spec Kit organizes work into a sequence of artifacts per feature:
