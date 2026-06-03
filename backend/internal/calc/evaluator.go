@@ -315,11 +315,19 @@ func evalRPN(rpn []token) (float64, error) {
 	return result, nil
 }
 
+// maxExactInt is the largest magnitude at which every consecutive integer is
+// exactly representable in a float64 (2^53 = 9007199254740992). Beyond it, plain
+// integer rendering is misleading and an int64 cast would overflow/saturate, so
+// such results are formatted in scientific notation instead.
+const maxExactInt = 1 << 53
+
 // formatResult formats a float64 result per the contract:
-//   - integers rendered plain (no decimal point)
-//   - non-integers to ≤12 significant digits with trailing zeros stripped
+//   - whole numbers within the exact-integer range (|v| ≤ 2^53) rendered plain
+//     (no decimal point)
+//   - larger magnitudes and non-integers (incl. very small values) to ≤12
+//     significant digits in scientific notation, trailing zeros stripped
 func formatResult(v float64) string {
-	if v == math.Trunc(v) && !math.IsInf(v, 0) {
+	if v == math.Trunc(v) && !math.IsInf(v, 0) && math.Abs(v) <= maxExactInt {
 		return strconv.FormatInt(int64(v), 10)
 	}
 	// %g with 12 significant digits, trailing zeros stripped automatically

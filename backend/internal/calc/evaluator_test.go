@@ -54,6 +54,13 @@ func TestEvaluate_HappyPath(t *testing.T) {
 		{"trim trailing zeros", "1.10 + 0", "1.1"},
 		{"large integer", "1000000 * 1000000", "1000000000000"},
 
+		// Large-magnitude results: scientific notation, never int64-corrupted (US1/US2)
+		{"reported overflow regression", "-9223372036854775808 - 999999999999999999999999999999999999999999", "-1e+42"},
+		{"exact-int boundary stays plain", "9007199254740992", "9007199254740992"},
+		{"just past boundary goes scientific", "9007199254740992 + 9007199254740992", "1.80143985095e+16"},
+		{"large positive scientific", "1e40 * 2", "2e+40"},
+		{"very small non-zero not zero", "1 / 1e20", "1e-20"},
+
 		// Scientific notation in number literals
 		{"sci notation", "1e3 + 0", "1000"},
 		{"sci notation with plus sign", "1e+3 + 0", "1000"},
@@ -100,6 +107,7 @@ func TestEvaluate_Errors(t *testing.T) {
 
 		// Non-finite
 		{"overflow large", "1e308 * 1e308", calc.ErrNonFinite},
+		{"over-large literal", "1e400", calc.ErrNonFinite},
 
 		// Scientific notation edge cases
 		{"invalid sci notation no digits", "1e + 2", calc.ErrInvalidExpression},

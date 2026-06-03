@@ -1,0 +1,141 @@
+openapi: 3.1.0
+info:
+  title: wonderlic-calc backend — calculate
+  version: 0.3.1
+  description: >
+    PATCH over 0.3.0. No structural change. Clarifies that the `result` string
+    may be returned in scientific notation for magnitudes outside the
+    exact-integer range (|value| > 2^53) and for very small non-zero values.
+    Whole numbers within the exact-integer range are still rendered plain.
+    Truly unrepresentable results (overflow to infinity, division by zero)
+    continue to return the `calculation_error` envelope (HTTP 422). This closes
+    a defect where large integer-valued results were corrupted by an int64 cast.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/calculate:
+    post:
+      summary: Evaluate a mathematical expression
+      operationId: postCalculate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculationRequest"
+            example:
+              expression: "12 + 7 * 3"
+      responses:
+        "200":
+          description: Expression evaluated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalculationResult"
+              examples:
+                plain:
+                  value:
+                    result: "33"
+                    expression: "12 + 7 * 3"
+                scientificLarge:
+                  value:
+                    result: "-1e+42"
+                    expression: "-9223372036854775808 - 999999999999999999999999999999999999999999"
+                scientificSmall:
+                  value:
+                    result: "1e-20"
+                    expression: "1 / 1e20"
+        "400":
+          description: Malformed request body or invalid expression
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                validation:
+                  value:
+                    error:
+                      code: validation_failed
+                      message: invalid expression
+                      fields:
+                        expression: "unexpected token near '*'"
+                badBody:
+                  value:
+                    error:
+                      code: bad_request
+                      message: bad request
+        "422":
+          description: Expression is well-formed but cannot be evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                divideByZero:
+                  value:
+                    error:
+                      code: calculation_error
+                      message: division by zero
+                nonFinite:
+                  value:
+                    error:
+                      code: calculation_error
+                      message: result is not a finite number
+        "405":
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    CalculationRequest:
+      type: object
+      required: [expression]
+      properties:
+        expression:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Raw mathematical expression (digits, . + - * / ( ) and spaces; scientific-notation literals like 1e40 are accepted)
+    CalculationResult:
+      type: object
+      required: [result, expression]
+      properties:
+        result:
+          type: string
+          description: >
+            Formatted numeric result. Whole numbers within the exact-integer
+            range (|value| <= 2^53) render plain (no decimal point). Larger
+            magnitudes and very small non-zero values render in scientific
+            notation (e.g. "1e+42", "1e-20"), carrying <=12 significant digits
+            with trailing zeros stripped.
+        expression:
+          type: string
+          description: Echo of the evaluated expression
+    Error:
+      description: Standard error envelope (shared with 0.2.0 contract).
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  validation_failed,
+                  calculation_error,
+                  bad_request,
+                  not_found,
+                  method_not_allowed,
+                  internal,
+                ]
+            message:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: string

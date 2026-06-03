@@ -72,6 +72,30 @@ func TestCalculateHandler(t *testing.T) {
 			wantStatus: http.StatusOK,
 			wantBody:   `"expression":"2 + 2"`,
 		},
+		{
+			name:       "large result returns scientific notation, not int64-corrupted",
+			body:       `{"expression":"-9223372036854775808 - 999999999999999999999999999999999999999999"}`,
+			wantStatus: http.StatusOK,
+			wantBody:   `"result":"-1e+42"`,
+		},
+		{
+			name:       "scientific-notation input literal accepted",
+			body:       `{"expression":"1e3 + 0"}`,
+			wantStatus: http.StatusOK,
+			wantBody:   `"result":"1000"`,
+		},
+		{
+			name:       "very small result in scientific notation",
+			body:       `{"expression":"1 / 1e20"}`,
+			wantStatus: http.StatusOK,
+			wantBody:   `"result":"1e-20"`,
+		},
+		{
+			name:       "over-large literal is calculation_error",
+			body:       `{"expression":"1e400"}`,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   `"code":"calculation_error"`,
+		},
 
 		// 400 validation_failed — malformed expression
 		{
