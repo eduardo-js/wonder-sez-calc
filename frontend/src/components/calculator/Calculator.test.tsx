@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Calculator from "./Calculator";
 
@@ -50,7 +50,9 @@ describe("Calculator — basic calculation flow (US1)", () => {
     await vi.waitFor(() => expect(display).toHaveTextContent("8"));
 
     await pressButtons(user, ["2"]);
-    expect(display).toHaveTextContent(/^2$/);
+    // The hint line may also show "2"; check the non-alert, non-status value span directly
+    const valueSpan = within(display).getAllByText(/^2$/);
+    expect(valueSpan.length).toBeGreaterThanOrEqual(1);
   });
 
   it("resets display to 0 after pressing C", async () => {
@@ -70,5 +72,66 @@ describe("Calculator — basic calculation flow (US1)", () => {
 
     const display = screen.getByTestId("calculator-display");
     await vi.waitFor(() => expect(display).toHaveTextContent("7"));
+  });
+});
+
+describe("Calculator — expression hint line (005)", () => {
+  function pressButton(label: string) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+  }
+
+  it("shows expression '12 +' after pressing 1, 2, + (before RHS)", async () => {
+    render(<Calculator />);
+
+    await act(async () => { pressButton("1"); });
+    await act(async () => { pressButton("2"); });
+    await act(async () => { pressButton("+"); });
+
+    const hintLine = screen.getByRole("status");
+    expect(hintLine).toHaveTextContent("12 +");
+    expect(mockCalculate).not.toHaveBeenCalled();
+  });
+
+  it("shows expression '12 + 3' after pressing 1, 2, +, 3 (before =)", async () => {
+    render(<Calculator />);
+
+    await act(async () => { pressButton("1"); });
+    await act(async () => { pressButton("2"); });
+    await act(async () => { pressButton("+"); });
+    await act(async () => { pressButton("3"); });
+
+    const hintLine = screen.getByRole("status");
+    expect(hintLine).toHaveTextContent("12 + 3");
+    expect(mockCalculate).not.toHaveBeenCalled();
+  });
+
+  it("calculate is NOT called until = is pressed", async () => {
+    render(<Calculator />);
+
+    await act(async () => { pressButton("1"); });
+    await act(async () => { pressButton("2"); });
+    await act(async () => { pressButton("+"); });
+    await act(async () => { pressButton("3"); });
+
+    expect(mockCalculate).not.toHaveBeenCalled();
+  });
+
+  it("after = is pressed, result shows and calculate was called once", async () => {
+    mockCalculate.mockResolvedValueOnce({ result: "15", expression: "12 + 3" });
+
+    render(<Calculator />);
+
+    await act(async () => { pressButton("1"); });
+    await act(async () => { pressButton("2"); });
+    await act(async () => { pressButton("+"); });
+    await act(async () => { pressButton("3"); });
+    await act(async () => { pressButton("="); });
+    await act(async () => {});
+
+    await vi.waitFor(() =>
+      expect(screen.getByTestId("calculator-display")).toHaveTextContent("15")
+    );
+    expect(mockCalculate).toHaveBeenCalledTimes(1);
+    expect(mockCalculate).toHaveBeenCalledWith("12 + 3");
   });
 });

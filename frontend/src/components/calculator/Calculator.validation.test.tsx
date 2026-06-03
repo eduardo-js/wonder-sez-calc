@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Calculator from "./Calculator";
 
@@ -30,7 +30,10 @@ describe("Calculator — validation and error handling (US2, backend-driven)", (
     const user = userEvent.setup();
     render(<Calculator />);
     await pressButtons(user, ["1", ".", "."]);
-    expect(screen.getByText("1.")).toBeInTheDocument();
+    // Use within to scope to the display; the hint line may also show "1."
+    const display = screen.getByTestId("calculator-display");
+    const valueSpans = within(display).getAllByText("1.");
+    expect(valueSpans.length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows role='alert' with backend error message when backend returns validation_failed", async () => {

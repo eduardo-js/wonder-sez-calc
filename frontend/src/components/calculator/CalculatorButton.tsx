@@ -49,6 +49,7 @@ export default function CalculatorButton({
       disabled={isLoading}
       className={cn(
         "h-14 w-full rounded-lg text-xl font-semibold sm:h-16 md:h-20",
+        "focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 focus-visible:outline-none",
         variantClassMap[variant],
         className
       )}
