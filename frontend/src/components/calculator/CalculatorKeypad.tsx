@@ -4,13 +4,15 @@ import CalculatorButton from "./CalculatorButton";
 export interface CalculatorKeypadProps {
   /** Forwarded to each CalculatorButton */
   onPress: (value: string) => void;
+  /** When true, the '=' button shows a loading spinner and is disabled */
+  isLoading?: boolean;
 }
 
 /**
  * Renders one CalculatorButton per KEYPAD_BUTTONS entry in a responsive CSS Grid.
  * 4-column layout; buttons with span=2 occupy two columns.
  */
-export default function CalculatorKeypad({ onPress }: CalculatorKeypadProps) {
+export default function CalculatorKeypad({ onPress, isLoading = false }: CalculatorKeypadProps) {
   return (
     <div
       className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4"
@@ -24,6 +26,7 @@ export default function CalculatorKeypad({ onPress }: CalculatorKeypadProps) {
           variant={btn.variant}
           onPress={onPress}
           className={btn.span === 2 ? "col-span-2" : undefined}
+          isLoading={btn.value === "=" ? isLoading : false}
         />
       ))}
     </div>

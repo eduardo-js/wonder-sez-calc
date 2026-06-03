@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: wonderlic-calc backend — calculate
+  version: 0.3.0
+  description: >
+    Adds the server-side calculation endpoint. The frontend delegates ALL
+    arithmetic here: it submits a raw mathematical expression string, the backend
+    validates and evaluates it (standard operator precedence), and returns the
+    result as JSON or the standard error envelope. Extends the 0.2.0 contract
+    (health probes + error envelope) by adding POST /api/v1/calculate and the
+    `calculation_error` error code.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/calculate:
+    post:
+      summary: Evaluate a mathematical expression
+      operationId: postCalculate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculationRequest"
+            example:
+              expression: "12 + 7 * 3"
+      responses:
+        "200":
+          description: Expression evaluated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalculationResult"
+              example:
+                result: "33"
+                expression: "12 + 7 * 3"
+        "400":
+          description: Malformed request body or invalid expression
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                validation:
+                  value:
+                    error:
+                      code: validation_failed
+                      message: invalid expression
+                      fields:
+                        expression: "unexpected token near '*'"
+                badBody:
+                  value:
+                    error:
+                      code: bad_request
+                      message: bad request
+        "422":
+          description: Expression is well-formed but cannot be evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                divideByZero:
+                  value:
+                    error:
+                      code: calculation_error
+                      message: division by zero
+                nonFinite:
+                  value:
+                    error:
+                      code: calculation_error
+                      message: result is not a finite number
+        "405":
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    CalculationRequest:
+      type: object
+      required: [expression]
+      properties:
+        expression:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Raw mathematical expression (digits, . + - * / ( ) and spaces)
+    CalculationResult:
+      type: object
+      required: [result, expression]
+      properties:
+        result:
+          type: string
+          description: Formatted numeric result (integers plain; else ≤12 significant digits)
+        expression:
+          type: string
+          description: Echo of the evaluated expression
+    Error:
+      description: Standard error envelope (shared with 0.2.0 contract).
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  validation_failed,
+                  calculation_error,
+                  bad_request,
+                  not_found,
+                  method_not_allowed,
+                  internal,
+                ]
+            message:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: string
