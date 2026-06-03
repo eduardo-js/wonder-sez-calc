@@ -14,8 +14,10 @@ import (
 )
 
 // allowedCharsRE matches the full set of characters permitted in an expression.
-// Allowed: digits, '.', '+', '-', '*', '/', '(', ')', spaces.
-var allowedCharsRE = regexp.MustCompile(`^[0-9+\-*/().\ ]+$`)
+// Allowed: digits, '.', '+', '-', '*', '/', '(', ')', spaces, and 'e'/'E' for
+// scientific-notation literals (e.g. 1e40). The evaluator does the structural
+// validation; this gate only rejects clearly out-of-charset input.
+var allowedCharsRE = regexp.MustCompile(`^[0-9eE+\-*/().\ ]+$`)
 
 // calculationRequest is the JSON body accepted by the calculate endpoint.
 type calculationRequest struct {
