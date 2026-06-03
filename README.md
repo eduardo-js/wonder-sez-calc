@@ -23,6 +23,22 @@ Quick check: `curl localhost:8080/healthz` → `{"status":"ok"}`. The calculator
 client-side; the backend is operational scaffolding only in this feature. See
 `specs/001-calculator-ui-barebones/quickstart.md` for full verification steps.
 
+### Run with Docker
+
+No Node or Go required — only Docker Engine + Compose v2:
+
+```bash
+make docker-up        # build + start frontend (:5173) and backend (:8080), detached
+make docker-logs      # follow combined logs
+make docker-rebuild   # rebuild images + restart (apply code changes)
+make docker-down      # stop + remove containers
+make docker-build     # build images without starting
+```
+
+Then open http://localhost:5173. Configuration is inline in `docker-compose.yml` (no `.env`
+file). Editing `frontend/src/**` hot-reloads live; for backend changes run `make docker-rebuild`.
+See `specs/006-docker-compose-setup/quickstart.md` for details.
+
 ## How it works
 
 Spec Kit organizes work into a sequence of artifacts per feature:

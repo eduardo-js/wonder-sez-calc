@@ -1,0 +1,16 @@
+# Build artifacts
+bin/
+*.exe
+*.test
+
+# Coverage
+coverage*.out
+
+# VCS / tooling
+.git/
+.gitignore
+
+# Editor / OS
+.DS_Store
+*.swp
+*.tmp

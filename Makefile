@@ -3,7 +3,8 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help install build test test-frontend test-backend cover-backend lint fmt \
-        run-frontend run-backend dev clean all
+        run-frontend run-backend dev clean all \
+        docker-up docker-down docker-build docker-rebuild docker-logs
 
 FRONTEND_DIR := frontend
 BACKEND_DIR  := backend
@@ -68,5 +69,20 @@ dev: ## Run frontend and backend together
 
 clean: ## Remove build artifacts
 	rm -rf $(FRONTEND_DIR)/dist $(FRONTEND_DIR)/node_modules $(BACKEND_DIR)/bin
+
+docker-up: ## Start containerized stack (build if needed, detached)
+	docker compose up -d --build
+
+docker-down: ## Stop and remove containers and anonymous volumes
+	docker compose down -v
+
+docker-build: ## Build container images without starting
+	docker compose build
+
+docker-rebuild: ## Rebuild images and restart stack (apply code changes)
+	docker compose up -d --build --force-recreate
+
+docker-logs: ## Follow combined logs of both services
+	docker compose logs -f
 
 all: install lint test build ## Install, lint, test, build
