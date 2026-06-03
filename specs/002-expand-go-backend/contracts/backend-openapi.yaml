@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: wonderlic-calc backend
+  version: 0.2.0
+  description: >
+    Backend HTTP foundation. Adds Gin routing, CORS for the configured frontend
+    origin(s), declarative request validation, and a single structured error
+    envelope. Operational probes are preserved from 0.1.0. Application routes live
+    under the versioned /api/v1 group; concrete business (calculator) endpoints are
+    introduced in a later feature.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+  /readyz:
+    get:
+      summary: Readiness probe
+      operationId: getReadyz
+      responses:
+        "200":
+          description: Service is ready to serve traffic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ready"
+              example:
+                status: ready
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Ready:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+    Error:
+      description: >
+        Standard error envelope returned for all client and server errors
+        (FR-007/FR-008). `fields` is present only for validation failures.
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  validation_failed,
+                  bad_request,
+                  not_found,
+                  method_not_allowed,
+                  internal,
+                ]
+            message:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+      example:
+        error:
+          code: validation_failed
+          message: request validation failed
+          fields:
+            amount: required
+  responses:
+    NotFound:
+      description: Unknown route
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: not_found
+              message: resource not found
+    MethodNotAllowed:
+      description: Unsupported method for a known path
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: method_not_allowed
+              message: method not allowed
+    ValidationFailed:
+      description: Request failed binding or validation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+# CORS (informational — enforced by middleware, not a path):
+#   Allowed origins: configured via CORS_ALLOWED_ORIGINS (default http://localhost:5173)
+#   Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+#   Allowed headers: Origin, Content-Type, Accept, Authorization
+#   Preflight (OPTIONS) handled for allowed origins; others not granted access.

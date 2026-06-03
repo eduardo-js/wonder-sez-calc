@@ -2,11 +2,12 @@
 # Delegates into frontend/ (npm) and backend/ (go).
 
 .DEFAULT_GOAL := help
-.PHONY: help install build test test-frontend test-backend lint fmt \
+.PHONY: help install build test test-frontend test-backend cover-backend lint fmt \
         run-frontend run-backend dev clean all
 
 FRONTEND_DIR := frontend
 BACKEND_DIR  := backend
+COVERAGE_MIN := 95.0
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -25,8 +26,16 @@ test: test-frontend test-backend ## Run all tests
 test-frontend: ## Run frontend tests
 	cd $(FRONTEND_DIR) && npm run test -- --run
 
-test-backend: ## Run backend tests
-	cd $(BACKEND_DIR) && go test ./...
+test-backend: ## Run backend tests + coverage gate (>= $(COVERAGE_MIN)% over internal/)
+	cd $(BACKEND_DIR) && go test ./... -coverprofile=coverage.out -covermode=atomic
+	@cd $(BACKEND_DIR) && go test ./internal/... -coverprofile=coverage.internal.out -covermode=atomic >/dev/null
+	@cd $(BACKEND_DIR) && go tool cover -func=coverage.internal.out | awk -v min=$(COVERAGE_MIN) \
+		'/^total:/ {gsub("%","",$$3); printf "backend internal coverage: %.1f%% (min %.1f%%)\n", $$3, min; \
+		if ($$3+0 < min+0) {print "FAIL: coverage below threshold"; exit 1}}'
+
+cover-backend: ## Open backend coverage HTML report
+	cd $(BACKEND_DIR) && go test ./internal/... -coverprofile=coverage.out -covermode=atomic
+	cd $(BACKEND_DIR) && go tool cover -html=coverage.out
 
 lint: ## Lint both workspaces
 	cd $(FRONTEND_DIR) && npm run lint

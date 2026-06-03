@@ -1,10 +1,10 @@
-// Package health provides HTTP handlers for liveness and readiness probes.
+// Package health provides Gin handlers for liveness and readiness probes.
 package health
 
 import (
-	"encoding/json"
-	"log/slog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // healthResponse is the JSON body returned by the liveness probe.
@@ -17,47 +17,20 @@ type readyResponse struct {
 	Status string `json:"status"`
 }
 
-// Handler holds dependencies for the health and readiness HTTP handlers.
-type Handler struct {
-	logger *slog.Logger
+// Healthz is the liveness probe: 200 {"status":"ok"}.
+func Healthz(c *gin.Context) {
+	c.JSON(http.StatusOK, healthResponse{Status: "ok"})
 }
 
-// NewHandler constructs a Handler and registers /healthz and /readyz on mux.
-// If mux is nil, a new http.ServeMux is created and returned.
-func NewHandler(mux *http.ServeMux, logger *slog.Logger) (*Handler, *http.ServeMux) {
-	if mux == nil {
-		mux = http.NewServeMux()
-	}
-
-	h := &Handler{logger: logger}
-	mux.HandleFunc("GET /healthz", h.Healthz)
-	mux.HandleFunc("GET /readyz", h.Readyz)
-
-	return h, mux
+// Readyz is the readiness probe: 200 {"status":"ready"}.
+func Readyz(c *gin.Context) {
+	c.JSON(http.StatusOK, readyResponse{Status: "ready"})
 }
 
-// Healthz handles GET /healthz — liveness probe.
-// Responds 200 application/json {"status":"ok"}.
-func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, r, http.StatusOK, healthResponse{Status: "ok"})
-}
-
-// Readyz handles GET /readyz — readiness probe.
-// Responds 200 application/json {"status":"ready"}.
-func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, r, http.StatusOK, readyResponse{Status: "ready"})
-}
-
-// writeJSON encodes v as JSON and writes it to w with the given status code.
-// On encoding failure the error is logged and a 500 is returned.
-func (h *Handler) writeJSON(w http.ResponseWriter, r *http.Request, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		h.logger.Error("failed to encode JSON response",
-			"error", err,
-			"path", r.URL.Path,
-		)
-	}
+// Register mounts the probes on the given router.
+//
+//	GET /healthz, GET /readyz
+func Register(r gin.IRouter) {
+	r.GET("/healthz", Healthz)
+	r.GET("/readyz", Readyz)
 }
