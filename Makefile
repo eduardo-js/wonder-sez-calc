@@ -37,8 +37,8 @@ build: ## Production build for both workspaces
 
 test: test-frontend test-backend ## Run all tests
 
-test-frontend: ## Run frontend tests
-	$(use_node) cd $(FRONTEND_DIR) && npm run test -- --run
+test-frontend: ## Run frontend tests + coverage gate
+	$(use_node) cd $(FRONTEND_DIR) && npm run test:coverage
 
 test-backend: ## Run backend tests + coverage gate (>= $(COVERAGE_MIN)% over internal/)
 	cd $(BACKEND_DIR) && go test ./... -coverprofile=coverage.out -covermode=atomic
