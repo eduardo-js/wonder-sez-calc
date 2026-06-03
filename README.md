@@ -2,6 +2,27 @@
 
 This project is built with [GitHub Spec Kit](https://github.com/github/spec-kit) — a toolkit for **Spec-Driven Development**, where you describe *what* and *why* before *how*, and executable specs drive implementation.
 
+## Development
+
+Monorepo: `frontend/` (React + TypeScript + Vite + Tailwind + shadcn/ui) and `backend/`
+(Go, stdlib `net/http`), orchestrated by a root `Makefile`.
+
+**Prerequisites**: Node **20+** (a `.nvmrc` pins the latest LTS — run `nvm use`) and Go **1.23+**.
+
+```bash
+make install        # install frontend + backend deps
+make dev            # run frontend (Vite) and backend (:8080) together
+make test           # run frontend (Vitest) + backend (go test) suites
+make lint           # eslint + go vet
+make fmt            # prettier + gofmt
+make build          # production build of both workspaces
+make help           # list all targets
+```
+
+Quick check: `curl localhost:8080/healthz` → `{"status":"ok"}`. The calculator computes
+client-side; the backend is operational scaffolding only in this feature. See
+`specs/001-calculator-ui-barebones/quickstart.md` for full verification steps.
+
 ## How it works
 
 Spec Kit organizes work into a sequence of artifacts per feature:

@@ -1,4 +1,6 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Active feature: 001-calculator-ui-barebones
+For technologies, project structure, shell commands, and other context, read the current plan:
+specs/001-calculator-ui-barebones/plan.md
+Supporting artifacts: spec.md, research.md, data-model.md, quickstart.md, contracts/
 <!-- SPECKIT END -->

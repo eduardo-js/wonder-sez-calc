@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Builds
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# Test / coverage
+coverage/
+*.out
+*.test
+
+# Go
+backend/bin/
+vendor/
+*.exe
+
+# Env / logs
+.env*
+!.env.example
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.tmp
