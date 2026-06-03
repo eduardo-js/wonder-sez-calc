@@ -124,6 +124,33 @@ func TestCORS(t *testing.T) {
 	})
 }
 
+func TestCalculateRouteRegistered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := newTestRouter([]string{"http://localhost:5173"})
+
+	t.Run("POST /api/v1/calculate returns 200 on valid body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/calculate",
+			strings.NewReader(`{"expression":"2 + 2"}`))
+		req.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("status: got %d, want 200; body: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GET /api/v1/calculate returns 405 not 404", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/calculate", nil)
+		engine.ServeHTTP(w, req)
+
+		if w.Code == http.StatusNotFound {
+			t.Errorf("route /api/v1/calculate must be registered (got 404)")
+		}
+	})
+}
+
 func TestValidationIntegration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := newTestRouter([]string{"http://localhost:5173"})

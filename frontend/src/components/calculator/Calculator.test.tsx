@@ -1,10 +1,22 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Calculator from "./Calculator";
 
+vi.mock("@/lib/api", () => ({
+  calculate: vi.fn(),
+}));
+
+import { calculate } from "@/lib/api";
+
+const mockCalculate = vi.mocked(calculate);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 /**
- * Integration tests for User Story 1: basic calculation flow.
+ * Integration tests for User Story 1: basic calculation flow (backend-driven).
  */
 describe("Calculator — basic calculation flow (US1)", () => {
   async function pressButtons(user: ReturnType<typeof userEvent.setup>, labels: string[]) {
@@ -13,20 +25,32 @@ describe("Calculator — basic calculation flow (US1)", () => {
     }
   }
 
-  it("displays 19 after pressing 1 2 + 7 =", async () => {
+  it("displays backend result after pressing 1 2 + 7 =", async () => {
+    mockCalculate.mockResolvedValueOnce({ result: "19", expression: "12 + 7" });
+
     const user = userEvent.setup();
     render(<Calculator />);
     await pressButtons(user, ["1", "2", "+", "7", "="]);
-    expect(screen.getByText("19")).toBeInTheDocument();
+
+    const display = screen.getByTestId("calculator-display");
+    expect(await screen.findByTestId("calculator-display")).toHaveTextContent("19");
+    expect(display).toBeInTheDocument();
+    expect(mockCalculate).toHaveBeenCalledWith("12 + 7");
   });
 
   it("starts a new entry (not appends) after showing a result", async () => {
+    mockCalculate.mockResolvedValueOnce({ result: "8", expression: "5 + 3" });
+
     const user = userEvent.setup();
     render(<Calculator />);
-    await pressButtons(user, ["5", "+", "3", "="]); // result: 8
-    await pressButtons(user, ["2"]); // new entry
-    // Should show 2, not 82
-    expect(screen.getByTestId("calculator-display")).toHaveTextContent(/^2$/);
+    await pressButtons(user, ["5", "+", "3", "="]);
+
+    // Wait for backend result to appear in display
+    const display = screen.getByTestId("calculator-display");
+    await vi.waitFor(() => expect(display).toHaveTextContent("8"));
+
+    await pressButtons(user, ["2"]);
+    expect(display).toHaveTextContent(/^2$/);
   });
 
   it("resets display to 0 after pressing C", async () => {
@@ -38,9 +62,13 @@ describe("Calculator — basic calculation flow (US1)", () => {
   });
 
   it("registers operator and starts fresh operand", async () => {
+    mockCalculate.mockResolvedValueOnce({ result: "7", expression: "4 + 3" });
+
     const user = userEvent.setup();
     render(<Calculator />);
     await pressButtons(user, ["4", "+", "3", "="]);
-    expect(screen.getByTestId("calculator-display")).toHaveTextContent(/^7$/);
+
+    const display = screen.getByTestId("calculator-display");
+    await vi.waitFor(() => expect(display).toHaveTextContent("7"));
   });
 });

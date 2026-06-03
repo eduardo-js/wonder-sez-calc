@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/wonderlic-calc/backend/internal/calculate"
 	"github.com/wonderlic-calc/backend/internal/config"
 	"github.com/wonderlic-calc/backend/internal/health"
 	"github.com/wonderlic-calc/backend/internal/httpx"
@@ -27,8 +28,9 @@ func NewRouter(cfg config.Config, logger *slog.Logger) *gin.Engine {
 
 	health.Register(engine)
 
-	// Versioned API group — empty; ready for future routes.
-	_ = engine.Group("/api/v1")
+	// Versioned API group.
+	apiV1 := engine.Group("/api/v1")
+	calculate.Register(apiV1, logger)
 
 	engine.NoRoute(func(c *gin.Context) {
 		httpx.WriteError(c, http.StatusNotFound, httpx.CodeNotFound, "resource not found", nil)

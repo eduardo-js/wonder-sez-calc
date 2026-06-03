@@ -16,6 +16,8 @@ export interface CalculatorButtonProps {
   ariaLabel?: string;
   /** Optional extra classes (e.g. col-span-2) */
   className?: string;
+  /** When true, renders a spinner in place of label and disables the button */
+  isLoading?: boolean;
 }
 
 const variantClassMap: Record<ButtonVariant, string> = {
@@ -29,7 +31,7 @@ const variantClassMap: Record<ButtonVariant, string> = {
 
 /**
  * Reusable calculator button wrapping the shadcn Button primitive.
- * Applies variant-specific styling and forwards the value on press.
+ * When isLoading=true (only used for '='), shows a spinner and disables interaction.
  */
 export default function CalculatorButton({
   label,
@@ -38,19 +40,29 @@ export default function CalculatorButton({
   onPress,
   ariaLabel,
   className,
+  isLoading = false,
 }: CalculatorButtonProps) {
   return (
     <Button
       variant="ghost"
-      aria-label={ariaLabel ?? label}
+      aria-label={isLoading ? "calculating" : (ariaLabel ?? label)}
+      disabled={isLoading}
       className={cn(
         "h-14 w-full rounded-lg text-xl font-semibold sm:h-16 md:h-20",
         variantClassMap[variant],
         className
       )}
-      onClick={() => onPress(value)}
+      onClick={() => !isLoading && onPress(value)}
     >
-      {label}
+      {isLoading ? (
+        <span
+          data-testid="spinner"
+          aria-hidden="true"
+          className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"
+        />
+      ) : (
+        label
+      )}
     </Button>
   );
 }

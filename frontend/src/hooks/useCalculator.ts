@@ -1,5 +1,7 @@
 import { useReducer } from "react";
-import { compute } from "../lib/calculator";
+import { calculate } from "../lib/api";
+import { ApiResponseError } from "../lib/apiTypes";
+import { buildExpression } from "../lib/expression";
 import { hasDecimal, isEmptyOperand } from "../lib/validation";
 import {
   type CalculatorAction,
@@ -8,67 +10,85 @@ import {
 } from "./calculatorTypes";
 
 /**
- * Pure reducer implementing all state transitions per data-model.md.
+ * Pure reducer implementing all state transitions.
+ * EVALUATE is now handled async in the hook; reducer handles lifecycle actions.
  */
 export function calculatorReducer(
   state: CalculatorState,
   action: CalculatorAction
 ): CalculatorState {
-  // Any action on error state is ignored except CLEAR
-  if (state.error && action.type !== "CLEAR") {
-    return state;
-  }
-
   switch (action.type) {
     case "INPUT_DIGIT": {
       const { digit } = action;
 
+      // Clear error state on new input
+      const clearError =
+        state.status === "error"
+          ? { status: "idle" as const, errorMsg: null, error: null }
+          : {};
+
       if (state.overwrite) {
-        // Start fresh — replace display entirely
         const newCurrent = digit === "0" ? "0" : digit;
-        return { ...state, current: newCurrent, display: newCurrent, overwrite: false };
+        return {
+          ...state,
+          ...clearError,
+          current: newCurrent,
+          display: newCurrent,
+          overwrite: false,
+        };
       }
 
-      // Normalize leading zeros: don't allow "007"
-      if (state.current === "0" && digit === "0") return state;
+      if (state.current === "0" && digit === "0") return { ...state, ...clearError };
       if (state.current === "0" && digit !== ".") {
         const newCurrent = digit;
-        return { ...state, current: newCurrent, display: newCurrent };
+        return { ...state, ...clearError, current: newCurrent, display: newCurrent };
       }
 
       const newCurrent = state.current + digit;
-      return { ...state, current: newCurrent, display: newCurrent };
+      return { ...state, ...clearError, current: newCurrent, display: newCurrent };
     }
 
     case "INPUT_DECIMAL": {
-      // Ignore if already has decimal
-      if (hasDecimal(state.current)) return state;
+      const clearError =
+        state.status === "error"
+          ? { status: "idle" as const, errorMsg: null, error: null }
+          : {};
+
+      if (hasDecimal(state.current)) return { ...state, ...clearError };
 
       if (state.overwrite) {
-        // Start fresh decimal: "0."
-        return { ...state, current: "0.", display: "0.", overwrite: false };
+        return {
+          ...state,
+          ...clearError,
+          current: "0.",
+          display: "0.",
+          overwrite: false,
+        };
       }
 
       const newCurrent = state.current + ".";
-      return { ...state, current: newCurrent, display: newCurrent };
+      return { ...state, ...clearError, current: newCurrent, display: newCurrent };
     }
 
     case "CHOOSE_OP": {
       const { operator } = action;
 
-      // Leading operator: no previous and current is "0" with overwrite → ignore
+      const clearError =
+        state.status === "error"
+          ? { status: "idle" as const, errorMsg: null, error: null }
+          : {};
+
       if (state.previous === null && isEmptyOperand(state.current) && state.overwrite) {
         return state;
       }
 
-      // Repeated/changed operator: just swap the operator, keep previous
       if (state.previous !== null && state.overwrite) {
-        return { ...state, operator };
+        return { ...state, ...clearError, operator };
       }
 
-      // Normal case: commit current → previous, set operator, set overwrite for next operand
       return {
         ...state,
+        ...clearError,
         previous: state.current,
         operator,
         overwrite: true,
@@ -77,29 +97,38 @@ export function calculatorReducer(
     }
 
     case "EVALUATE": {
-      // Nothing to evaluate without all parts
-      if (state.previous === null || state.operator === null) {
-        return state;
-      }
+      // Sync EVALUATE is now a no-op: async logic handled in hook.
+      // Guard: do nothing if no expression parts.
+      if (state.previous === null || state.operator === null) return state;
+      // Guard: do nothing if already loading
+      if (state.status === "loading") return state;
+      return state;
+    }
 
-      const result = compute(state.previous, state.operator, state.current);
+    case "EVALUATE_START": {
+      return { ...state, status: "loading", errorMsg: null };
+    }
 
-      if (result.error) {
-        return {
-          ...state,
-          error: result.error,
-          display: result.error,
-        };
-      }
-
+    case "EVALUATE_SUCCESS": {
       return {
         ...state,
-        display: result.value,
-        current: result.value,
+        status: "idle",
+        errorMsg: null,
+        error: null,
+        display: action.result,
+        current: action.result,
         previous: null,
         operator: null,
         overwrite: true,
-        error: null,
+      };
+    }
+
+    case "EVALUATE_ERROR": {
+      return {
+        ...state,
+        status: "error",
+        errorMsg: action.errorMsg,
+        // display is intentionally unchanged
       };
     }
 
@@ -108,7 +137,6 @@ export function calculatorReducer(
     }
 
     default: {
-      // TypeScript exhaustiveness check — unreachable at runtime
       throw new Error(`Unhandled action: ${JSON.stringify(action)}`);
     }
   }
@@ -116,17 +144,36 @@ export function calculatorReducer(
 
 /**
  * useCalculator — wires the reducer and returns state + dispatch helpers.
+ * EVALUATE is async: builds expression, calls backend, dispatches lifecycle actions.
  */
 export function useCalculator() {
   const [state, dispatch] = useReducer(calculatorReducer, INITIAL_STATE);
 
-  function handlePress(value: string): void {
+  async function handlePress(value: string): Promise<void> {
     if (value === "C") {
       dispatch({ type: "CLEAR" });
       return;
     }
     if (value === "=") {
-      dispatch({ type: "EVALUATE" });
+      // Guard: single in-flight
+      if (state.status === "loading") return;
+      // Guard: need both operands
+      if (state.previous === null || state.operator === null) return;
+
+      const expression = buildExpression(state.previous, state.operator, state.current);
+      if (expression === null) return;
+
+      dispatch({ type: "EVALUATE_START" });
+      try {
+        const result = await calculate(expression);
+        dispatch({ type: "EVALUATE_SUCCESS", result: result.result });
+      } catch (err) {
+        const msg =
+          err instanceof ApiResponseError
+            ? err.message
+            : "An unexpected error occurred.";
+        dispatch({ type: "EVALUATE_ERROR", errorMsg: msg });
+      }
       return;
     }
     if (value === ".") {

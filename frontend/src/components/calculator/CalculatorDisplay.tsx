@@ -3,29 +3,34 @@ import { cn } from "@/lib/utils";
 export interface CalculatorDisplayProps {
   /** Current display string */
   value: string;
-  /** When set, renders an error state with role="alert" */
+  /** When set, renders an accessible error alert */
   error: string | null;
+  /** Backend/network error message (shown in role="alert") */
+  errorMsg?: string | null;
 }
 
 /**
  * Calculator display area. Shows value normally; renders error with role="alert"
- * and distinct styling when error is set (FR-005 / contract).
+ * when error or errorMsg is set.
  */
-export default function CalculatorDisplay({ value, error }: CalculatorDisplayProps) {
+export default function CalculatorDisplay({ value, error, errorMsg }: CalculatorDisplayProps) {
+  const alertText = errorMsg ?? error ?? null;
+
   return (
     <div
       data-testid="calculator-display"
       className={cn(
         "flex min-h-[4rem] w-full items-end justify-end overflow-hidden rounded-lg px-4 py-3 sm:min-h-[5rem] md:min-h-[6rem]",
-        error ? "bg-red-900 text-red-200" : "bg-slate-900 text-white"
+        alertText ? "bg-red-900 text-red-200" : "bg-slate-900 text-white"
       )}
     >
-      {error ? (
+      {alertText ? (
         <span
           role="alert"
+          aria-live="assertive"
           className="max-w-full truncate text-right text-lg font-medium sm:text-xl md:text-2xl"
         >
-          {error}
+          {alertText}
         </span>
       ) : (
         <span

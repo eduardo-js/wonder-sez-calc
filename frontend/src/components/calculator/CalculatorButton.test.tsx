@@ -47,4 +47,31 @@ describe("CalculatorButton", () => {
     const btn = screen.getByRole("button", { name: "C" });
     expect(btn.className).toContain("calculator-btn-action");
   });
+
+  it("renders spinner and is disabled when isLoading=true", () => {
+    render(
+      <CalculatorButton label="=" value="=" variant="action" onPress={vi.fn()} isLoading={true} />
+    );
+    const btn = screen.getByRole("button", { name: "calculating" });
+    expect(btn).toBeDisabled();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    expect(screen.queryByText("=")).not.toBeInTheDocument();
+  });
+
+  it("does not render spinner when isLoading=false (default)", () => {
+    render(<CalculatorButton label="=" value="=" onPress={vi.fn()} />);
+    expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "=" })).not.toBeDisabled();
+  });
+
+  it("does not call onPress when isLoading=true and clicked", async () => {
+    const user = userEvent.setup();
+    const onPress = vi.fn();
+    render(
+      <CalculatorButton label="=" value="=" onPress={onPress} isLoading={true} />
+    );
+    const btn = screen.getByRole("button", { name: "calculating" });
+    await user.click(btn);
+    expect(onPress).not.toHaveBeenCalled();
+  });
 });

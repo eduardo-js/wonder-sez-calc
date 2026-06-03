@@ -14,6 +14,7 @@ const (
 	CodeNotFound         = "not_found"
 	CodeMethodNotAllowed = "method_not_allowed"
 	CodeInternal         = "internal"
+	CodeCalculation      = "calculation_error"
 )
 
 // Error is the structured error payload returned in the "error" envelope field.
