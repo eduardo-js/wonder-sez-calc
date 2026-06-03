@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCalculator } from "./useCalculator";
 
@@ -13,7 +13,12 @@ import { ApiResponseError } from "@/lib/apiTypes";
 const mockCalculate = vi.mocked(calculate);
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("useCalculator — EVALUATE (backend-driven)", () => {
@@ -151,5 +156,22 @@ describe("useCalculator — EVALUATE (backend-driven)", () => {
 
     expect(result.current.state.status).toBe("idle");
     expect(result.current.state.errorMsg).toBeNull();
+  });
+
+  it("typing digits and operators does NOT call calculate; only = does", async () => {
+    mockCalculate.mockResolvedValueOnce({ result: "5", expression: "2 + 3" });
+
+    const { result } = renderHook(() => useCalculator());
+
+    await act(async () => { result.current.handlePress("2"); });
+    await act(async () => { result.current.handlePress("+"); });
+    await act(async () => { result.current.handlePress("3"); });
+
+    // No call yet
+    expect(mockCalculate).not.toHaveBeenCalled();
+
+    await act(async () => { await result.current.handlePress("="); });
+
+    expect(mockCalculate).toHaveBeenCalledTimes(1);
   });
 });

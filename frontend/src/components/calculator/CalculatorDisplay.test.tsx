@@ -31,3 +31,80 @@ describe("CalculatorDisplay", () => {
     expect(alert).not.toHaveTextContent("123");
   });
 });
+
+describe("CalculatorDisplay — expression hint line (005)", () => {
+  it("renders expression as a secondary polite live region", () => {
+    render(
+      <CalculatorDisplay
+        value="3"
+        error={null}
+        expression="12 +"
+      />
+    );
+
+    const hintLine = screen.getByRole("status");
+    expect(hintLine).toHaveTextContent("12 +");
+    expect(hintLine).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("renders expression with RHS typed", () => {
+    render(
+      <CalculatorDisplay
+        value="3"
+        error={null}
+        expression="12 + 3"
+      />
+    );
+
+    const hintLine = screen.getByRole("status");
+    expect(hintLine).toHaveTextContent("12 + 3");
+  });
+
+  it("empty expression string suppresses hint line", () => {
+    render(
+      <CalculatorDisplay
+        value="0"
+        error={null}
+        expression=""
+      />
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("omitted expression suppresses hint line", () => {
+    render(
+      <CalculatorDisplay
+        value="5"
+        error={null}
+      />
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("suppresses hint line when error is set", () => {
+    render(
+      <CalculatorDisplay
+        value="3"
+        error="invalid input"
+        expression="12 + 3"
+      />
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("suppresses hint line when errorMsg is set", () => {
+    render(
+      <CalculatorDisplay
+        value="3"
+        error={null}
+        errorMsg="division by zero"
+        expression="12 + 3"
+      />
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});

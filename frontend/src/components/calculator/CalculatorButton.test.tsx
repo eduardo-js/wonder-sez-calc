@@ -74,4 +74,22 @@ describe("CalculatorButton", () => {
     await user.click(btn);
     expect(onPress).not.toHaveBeenCalled();
   });
+
+  it("has a focus-visible ring class for keyboard affordance", () => {
+    render(<CalculatorButton label="7" value="7" onPress={vi.fn()} />);
+    const btn = screen.getByRole("button", { name: "7" });
+    expect(btn.className).toMatch(/focus-visible:ring/);
+  });
+
+  it("is keyboard-focusable and fires onPress via keyboard", async () => {
+    const user = userEvent.setup();
+    const onPress = vi.fn();
+    render(<CalculatorButton label="9" value="9" onPress={onPress} />);
+    const btn = screen.getByRole("button", { name: "9" });
+    btn.focus();
+    expect(btn).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(onPress).toHaveBeenCalledWith("9");
+  });
 });
