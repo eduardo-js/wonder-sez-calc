@@ -19,9 +19,9 @@ make build          # production build of both workspaces
 make help           # list all targets
 ```
 
-Quick check: `curl localhost:8080/healthz` → `{"status":"ok"}`. The calculator computes
-client-side; the backend is operational scaffolding only in this feature. See
-`specs/001-calculator-ui-barebones/quickstart.md` for full verification steps.
+Quick check: `curl localhost:8080/healthz` → `{"status":"ok"}`. The frontend never
+evaluates expressions itself — it sends them to the backend and renders the result (see
+[API](#api)). Full verification steps: `specs/001-calculator-ui-barebones/quickstart.md`.
 
 ### Run with Docker
 
@@ -57,6 +57,86 @@ make test-e2e         # run e2e against an already-running stack
 ```
 
 E2E lives in `e2e/` (Playwright, Chromium). See `specs/007-ci-cd-e2e-pipeline/quickstart.md`.
+
+## API
+
+The backend exposes one calculation endpoint plus a health probe.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/v1/calculate` | Evaluate an arithmetic expression |
+| `GET`  | `/healthz` | Liveness probe → `{"status":"ok"}` |
+
+Request body: `{ "expression": string }` (max 256 chars; digits, `. + - * / ( )` and spaces).
+Results are returned as **strings** to preserve precision and scientific notation for large values.
+
+**Success** — `200 OK`:
+
+```bash
+curl -s localhost:8080/api/v1/calculate \
+  -H 'Content-Type: application/json' \
+  -d '{"expression":"2 + 2 * 3"}'
+# → {"result":"8","expression":"2 + 2 * 3"}
+```
+
+**Division by zero** — `422 Unprocessable Entity`:
+
+```bash
+curl -s localhost:8080/api/v1/calculate \
+  -H 'Content-Type: application/json' \
+  -d '{"expression":"5 / 0"}'
+# → {"error":{"code":"calculation_error","message":"division by zero"}}
+```
+
+**Invalid expression** — `400 Bad Request`:
+
+```bash
+curl -s localhost:8080/api/v1/calculate \
+  -H 'Content-Type: application/json' \
+  -d '{"expression":"2 +"}'
+# → {"error":{"code":"validation_failed","message":"invalid expression",
+#      "fields":{"expression":"invalid expression: not enough operands for \"+\""}}}
+```
+
+All errors share the envelope `{"error":{"code","message","fields?"}}`. Codes:
+`validation_failed` (400), `calculation_error` (422, e.g. divide-by-zero / non-finite),
+`bad_request`, `not_found`, `method_not_allowed`, `internal`.
+
+## Design decisions & assumptions
+
+- **Backend owns all evaluation.** The frontend sends the raw expression and renders the
+  returned string; it never computes (no client-side `eval`). This keeps one source of
+  arithmetic truth, avoids JS float drift, and makes the API the contract both sides test against.
+- **Results are strings, not numbers.** Large results use scientific notation (`1e+42`) and
+  precision is formatted server-side, so a JSON number would lose fidelity.
+- **Custom evaluator, no `eval`.** The backend tokenizes and evaluates with explicit operator
+  precedence (`backend/internal/calc/evaluator.go`) — safe against injection and fully testable.
+- **Typed error envelope.** Sentinel errors (`ErrDivideByZero`, `ErrInvalidExpression`,
+  `ErrNonFinite`) map to stable wire `code`s so the UI can react without string-matching messages.
+- **Scope.** Four operations (`+ − × ÷`) only; exponentiation / square root / percentage were
+  left out as optional per the brief (correctness & clarity over extra features).
+- **Spec-driven.** Every feature began as a spec under `specs/` before code — see [Prompts](#prompts).
+- **Assumptions.** Single-user local/demo use; no auth, persistence, or rate limiting; expressions
+  capped at 256 chars; CORS allows the dev frontend origin only.
+
+## Prompts
+
+This project was built with AI tooling (Claude Code + GitHub Spec Kit). Every feature started
+from a natural-language prompt captured verbatim as the **`**Input**` line** at the top of each
+feature's `spec.md`. The prompts, in order, live in:
+
+| Feature | Prompt file |
+|---------|-------------|
+| 001 calculator UI barebones | `specs/001-calculator-ui-barebones/spec.md` |
+| 002 expand Go backend | `specs/002-expand-go-backend/spec.md` |
+| 003 wire frontend ↔ backend | `specs/003-wire-frontend-backend/spec.md` |
+| 004 large-number handling | `specs/004-large-number-handling/spec.md` |
+| 005 expression hints | `specs/005-expression-hints/spec.md` |
+| 006 docker compose setup | `specs/006-docker-compose-setup/spec.md` |
+| 007 CI/CD + e2e pipeline | `specs/007-ci-cd-e2e-pipeline/spec.md` |
+
+`PROMPTS.md` collects the same inputs in one place. Each `spec.md` also records the downstream
+`/speckit-*` artifacts (`plan.md`, `tasks.md`, …) generated from that prompt.
 
 ## How it works
 
