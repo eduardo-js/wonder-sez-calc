@@ -1,0 +1,18 @@
+# Dependencies (installed inside the image)
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Coverage
+coverage/
+
+# VCS / tooling
+.git/
+.gitignore
+
+# Editor / OS
+.DS_Store
+*.swp
+*.tmp
