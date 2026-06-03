@@ -4,7 +4,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help install build test test-frontend test-backend cover-backend lint fmt \
         run-frontend run-backend dev clean all \
-        docker-up docker-down docker-build docker-rebuild docker-logs
+        docker-up docker-down docker-build docker-rebuild docker-logs \
+        test-e2e e2e
 
 FRONTEND_DIR := frontend
 BACKEND_DIR  := backend
@@ -23,7 +24,7 @@ NVM_DIR ?= $(HOME)/.nvm
 use_node := export NVM_DIR="$(NVM_DIR)"; if [ -s "$$NVM_DIR/nvm.sh" ]; then . "$$NVM_DIR/nvm.sh" --no-use; nvm use --silent >/dev/null; fi;
 
 help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install deps for both workspaces
@@ -84,5 +85,20 @@ docker-rebuild: ## Rebuild images and restart stack (apply code changes)
 
 docker-logs: ## Follow combined logs of both services
 	docker compose logs -f
+
+E2E_DIR := e2e
+
+test-e2e: ## Run Playwright e2e against an already-running stack
+	$(use_node) cd $(E2E_DIR) && npm install && npx playwright install chromium && npx playwright test
+
+e2e: ## Start stack, run e2e, tear down
+	docker compose up -d --build
+	@echo "waiting for backend health..."; \
+	for i in $$(seq 1 30); do \
+		if curl -fsS http://localhost:8080/healthz >/dev/null 2>&1; then echo "healthy"; break; fi; \
+		if [ $$i -eq 30 ]; then echo "backend not healthy in time"; docker compose logs; docker compose down -v; exit 1; fi; \
+		sleep 2; \
+	done
+	$(MAKE) test-e2e; status=$$?; docker compose down -v; exit $$status
 
 all: install lint test build ## Install, lint, test, build
